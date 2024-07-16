@@ -27,7 +27,6 @@ const canvasStates = {
 };
 const components = [];
 const icons = {};
-const scaleStep = 0.25;
 let mainCanvas;
 let originalBackgroundImage;
 let originalFile;
