@@ -1,6 +1,0 @@
-class ImageEditor {
-  container;
-  constructor() {
-
-  }
-}
