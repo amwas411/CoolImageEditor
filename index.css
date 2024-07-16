@@ -1,0 +1,113 @@
+:root {
+  --cie-blue: #4e8ee5;
+  --cie-lightblack: #212121;
+}
+html {
+  height: 100%;
+}
+body {
+  height: 100%;
+  margin: 0px;
+}
+#main-container {
+  height: 100%;
+}
+#cie-main {
+  height: 100%;
+  display: flex;
+}
+
+#cie-left-panel {
+  width: 70%;
+  background: black;
+}
+#cie-canvas {
+  display: block;
+}
+
+
+#cie-right-panel {
+  width: 30%;
+  background: var(--cie-lightblack);
+  padding: 20px;
+  position: relative;
+}
+#cie-title-block {
+  display: flex;
+  justify-content: space-between;
+}
+.cie-block {
+  margin-bottom: 20px;
+  
+}
+#cie-title-block * {
+  display: flex;
+  align-items: center;
+}
+#cie-close-btn {
+  margin-right: 30px;
+}
+
+#cie-tools-menu {
+  display: flex;
+  justify-content: space-between;
+}
+
+.cie-tools-block {
+  margin-bottom: 5px;
+}
+.cie-tools-block .cie-tool-wrap {
+  display: block;
+  margin-bottom: 10px;
+}
+.cie-tool-wrap .cie-tool-label-wrap {
+  display: flex;
+  margin-bottom: 10px;
+  justify-content: space-between;
+}
+
+#cie-save-btn {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  fill: none;
+}
+#cie-undo-btn {
+  margin-right: 20px;
+}
+.cie-white {
+  color: white;
+}
+.cie-blue {
+  color: var(--cie-blue);
+}
+
+.cie-svg-btn {
+  fill: white;
+  cursor: pointer;
+  display: block;
+}
+.cie-svg-btn-wrap[cie-btn-active=true]::after {
+  content: url('data:image/svg+xml,<svg width="24" height="3" viewBox="0 0 24 3" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 3c0-.932 0-1.398.152-1.765A2 2 0 0 1 1.235.152C1.602 0 2.068 0 3 0h18c.932 0 1.398 0 1.765.152a2 2 0 0 1 1.083 1.083C24 1.602 24 2.068 24 3z" fill="%234E8EE5"/></svg>');
+}
+
+#cie-fileInput {
+  z-index: 1;
+  background: beige;
+  margin: 8px;
+  position: absolute; 
+  top:0px; 
+  left: 0px;
+}
+
+.cie-text-20 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.cie-text-16 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+}
