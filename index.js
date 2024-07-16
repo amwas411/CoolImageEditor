@@ -16,16 +16,12 @@ const canvasStates = {
     id: 2,
     cursorStyle: "default"
   },
-  grab: {
-    id: 3,
-    cursorStyle: "grab"
-  },
   draw: {
-    id: 4,
+    id: 3,
     cursorStyle: "crosshair"
   },
   sticker: {
-    id: 5,
+    id: 4,
     cursorStyle: "default"
   },
 };
@@ -40,8 +36,8 @@ let transformStack = [];
 let redoStack = [];
 let filterConfig = {};
 let isMouseDown = false;
-let isZoom = false;
 let isResize = false;
+let isUndoOrRedo = false;
 //#endregion Const
 
 function setCanvasState(state) {
@@ -239,17 +235,12 @@ function generateCropBlock() {
   cropBlock.id = "cie-crop-block";
   cropBlock.classList.add("cie-tools-block");
 
-  let moveBtn = document.createElement("button");
-  moveBtn.id = 'cie-move';
-  moveBtn.onclick = () => setCanvasState(canvasStates.grab);
-  moveBtn.textContent = "Move";
-
   let resetBtn = document.createElement("button");
   resetBtn.id = 'cie-reset';
   resetBtn.onclick = () => resetCanvas();
   resetBtn.textContent = "Reset";
 
-  cropBlock.append(moveBtn, resetBtn);
+  cropBlock.append(resetBtn);
   return cropBlock;
 }
 
@@ -320,7 +311,6 @@ async function init(renderTo) {
   
   window.onresize = () => resizeCanvas();
   mainCanvas.onmousedown = (e) => canvasMouseDown(e);
-  mainCanvas.onwheel = (e) => canvasZoom(e);
 }
 
 function calculateRealPoint(x, y) {
@@ -341,7 +331,7 @@ function renderUndo() {
   }
 
   redoStack.push(path);
-
+  isUndoOrRedo = true;
   render();
 }
 
@@ -352,7 +342,7 @@ function renderRedo() {
   }
 
   transformStack.push(item);
-
+  isUndoOrRedo = true;
   render();
 }
 
@@ -390,7 +380,7 @@ function render(toCanvas, callback) {
     let canvas = toCanvas || mainCanvas;
     let ctx = canvas.getContext('2d');
     
-    if (isGrab() || isZoom || isResize) {
+    if (isResize) {
       let transformMatrix = ctx.getTransform();
       ctx.resetTransform();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -403,7 +393,7 @@ function render(toCanvas, callback) {
     }
     ctx.filter = filter;
     
-    if (!isDraw() || isZoom || isResize) {
+    if (!isDraw() || isResize || isUndoOrRedo) {
       ctx.drawImage(originalBackgroundImage, 0, 0);
     }
 
@@ -416,7 +406,7 @@ function render(toCanvas, callback) {
       ctx.fill(path);
     }
     isResize = false;
-    isZoom = false;
+    isUndoOrRedo = false;
     callback?.call(this);
   });
 }
@@ -424,11 +414,6 @@ function render(toCanvas, callback) {
 function canvasMouseMove(e) {
   if (!isMouseDown || e.movementX === 0 && e.movementY === 0) {
     return;
-  }
-  let ctx = mainCanvas.getContext("2d");
-  if (isGrab()) {
-    console.log(e.movementX, e.movementY);
-    ctx.translate(e.movementX, e.movementY);
   }
 
   if (isDraw()) {
@@ -454,7 +439,7 @@ function pushPathToTransformStack(path) {
 }
 
 function canvasMouseDown(e) {
-  if (!isDraw() && !isGrab()) {
+  if (!isDraw()) {
     return;
   }
 
@@ -489,23 +474,6 @@ function createDrawingPath(x, y) {
   return path;
 }
 
-function canvasZoom(e) {
-  if (e.deltaX) {
-    return;
-  }
-
-  let scaleCoef = e.deltaY < 0 ? 1 : -1;
-  let ctx = mainCanvas.getContext("2d");
-  let currentScaleLevel = ctx.getTransform().a;
-
-  let dScale = (currentScaleLevel + scaleStep * scaleCoef) / currentScaleLevel;
-
-  ctx.scale(dScale, dScale);
-
-  isZoom = true;
-  render();
-}
-
 function fileInputChanged() {
   if (this.files.length < 1) {
     return;
@@ -521,9 +489,6 @@ function fileInputChanged() {
   };
 }
 
-function isGrab() {
-  return canvasState.id === canvasStates.grab.id;
-}
 function isDraw() {
   return canvasState.id === canvasStates.draw.id;
 }
