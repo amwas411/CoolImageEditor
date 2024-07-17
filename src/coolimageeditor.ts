@@ -1,6 +1,6 @@
-import resources from './resources';
-import RangeInput from './components/rangeInput';
-import ToolTab from './components/toolTab';
+import resources from './resources.js';
+import RangeInput from './components/rangeInput.js';
+import ToolTab from './components/toolTab.js';
 
 interface CanvasState {
   id: number,
@@ -56,6 +56,15 @@ export default class CoolImageEditor {
     this.container = this.generate();
     this.mainCanvas.onmousedown = (e) => this.canvasMouseDown(e);
     window.onresize = () => this.resizeCanvas();
+  }
+
+  public setImage(config: {
+    img: HTMLImageElement,
+    file: File
+  }) {
+    this.originalBackgroundImage = config.img;
+    this.originalFile = config.file;
+    this.resetCanvas();
   }
 
   private setCanvasState(state: CanvasState) {
@@ -296,7 +305,7 @@ export default class CoolImageEditor {
         case "contrast":
           config.events = {
             onInput: (e) => {
-              this.setFilterConfig("contrast", `${+(e.target as HTMLInputElement) + 100}%`);
+              this.setFilterConfig("contrast", `${+(e.target as HTMLInputElement).value + 100}%`);
               this.render();
             }
           };
@@ -305,7 +314,7 @@ export default class CoolImageEditor {
         case "saturation":
           config.events = {
             onInput: (e) => {
-              this.setFilterConfig("saturate", `${+(e.target as HTMLInputElement) + 100}%`);
+              this.setFilterConfig("saturate", `${+(e.target as HTMLInputElement).value + 100}%`);
               this.render();
             }
           };
@@ -358,7 +367,7 @@ export default class CoolImageEditor {
     this.render();
   }
   
-  private resizeCanvas() {
+  public resizeCanvas() {
     if (!this.originalBackgroundImage) {
       return;
     }
