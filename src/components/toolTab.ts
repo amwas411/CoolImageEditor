@@ -5,7 +5,6 @@ export default class ToolTab {
   private panelClass = "cie-block";
   private menuId = "cie-tools-menu";
   private panelId = "cie-tools-panel";
-  private activeButtonColor = "#4e8ee5";
   private events: Partial<{
     onClick: ToolTab["onClick"]
   }> = {};
@@ -31,7 +30,7 @@ export default class ToolTab {
     this.container.append(menu, panel);
   }
 
-  public appendTab(button: HTMLElement, panel: HTMLDivElement) {
+  public appendTab(button: HTMLElement, panel: HTMLDivElement): void {
     button.addEventListener('click', (e) => this.onClick(e, button, panel));
     let buttonWrap = document.createElement("div");
     buttonWrap.append(button);
@@ -39,7 +38,7 @@ export default class ToolTab {
     this.panel.append(panel);
   }
 
-  public activateTab(activeButton: HTMLElement, activePanel: HTMLDivElement) {
+  public activateTab(activeButton: HTMLElement, activePanel: HTMLDivElement): void {
     for (let panel of this.panel.children) {
       (panel as HTMLDivElement).hidden = true;
     }
@@ -52,7 +51,7 @@ export default class ToolTab {
     activeButton.parentElement?.setAttribute("cie-btn-active", "true");
   }
 
-  private onClick(e: MouseEvent, activeButton: HTMLElement, activePanel: HTMLDivElement) {
+  private onClick(e: MouseEvent, activeButton: HTMLElement, activePanel: HTMLDivElement): void {
     this.activateTab(activeButton, activePanel);
     this.events.onClick && this.events.onClick(e, activeButton, activePanel);
   }

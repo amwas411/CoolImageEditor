@@ -64,9 +64,4 @@ export default class RangeInput {
     this.valueLabel.textContent = (e.target as HTMLInputElement)?.value;
     this.events.onInput && this.events.onInput(e);
   }
-  
-  private reset() {
-    this.input.value = this.value = this.defaultValue;
-    this.valueLabel.textContent = this.value;
-  }
 }

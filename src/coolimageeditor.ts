@@ -1,48 +1,34 @@
 import resources from './resources.js';
 import RangeInput from './components/rangeInput.js';
 import ToolTab from './components/toolTab.js';
-
-interface CanvasState {
-  id: number,
-  cursorStyle: string
-}
-type FilterName = "enhance" | "brightness" | "contrast" | "saturation" | "warmth";
+import BaseState from './states/baseState.js';
+import { FilterState } from './states/filterState.js';
+import { CropState } from './states/cropState.js';
+import { TextState } from './states/textState.js';
+import { DrawState } from './states/drawState.js';
+import { StickerState } from './states/stickerState.js';
+import { FilterName, TransformPath } from './types.js';
 
 export default class CoolImageEditor {
-  private canvasStates: {[key: string]: CanvasState} = {
-    filter: {
-      id: 0,
-      cursorStyle: "default"
-    },
-    crop: {
-      id: 1,
-      cursorStyle: "default"
-    },
-    text: {
-      id: 2,
-      cursorStyle: "default"
-    },
-    draw: {
-      id: 3,
-      cursorStyle: "crosshair"
-    },
-    sticker: {
-      id: 4,
-      cursorStyle: "default"
-    },
+  private appState: BaseState;
+  private appStates: {
+    filter: FilterState,
+    crop: CropState,
+    text: TextState,
+    draw: DrawState,
+    sticker: StickerState,
   };
   private mainCanvas: HTMLCanvasElement;
+  private mainCtx: CanvasRenderingContext2D;
   private originalBackgroundImage: HTMLImageElement;
   private originalFile: File;
-  private canvasState = this.canvasStates.filter;
-  private transformStack: {path: Path2D, color: string}[] = [];
-  private redoStack: {path: Path2D, color: string}[] = [];
-  private static icons: {[key: string]: HTMLImageElement} = {};
+  private transformStack: TransformPath[] = [];
+  private redoStack: TransformPath[] = [];
   private filterConfig: {[key: string]: string} = {};
-  private isMouseDown = false;
-  private isResize = false;
-  private isUndoOrRedo = false;
-  private isSave = false;
+  // public methods guard.
+  private isInitialized = false;
+  
+  private static icons: {[key: string]: HTMLImageElement} = {};
 
   public container: HTMLDivElement;
 
@@ -53,76 +39,57 @@ export default class CoolImageEditor {
     this.originalBackgroundImage = config.img;
     this.originalFile = config.file;
     this.mainCanvas = this.generateCanvas();
+    let ctx = this.mainCanvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Unable to obtain 2d context from the main canvas");
+    }
+    this.mainCtx = ctx;
     this.container = this.generate();
     this.mainCanvas.onmousedown = (e) => this.canvasMouseDown(e);
-    window.onresize = () => this.resizeCanvas();
-  }
-
-  public setImage(config: {
-    img: HTMLImageElement,
-    file: File
-  }) {
-    this.originalBackgroundImage = config.img;
-    this.originalFile = config.file;
-    this.resetCanvas();
-  }
-
-  private setCanvasState(state: CanvasState) {
-    this.canvasState = state;
-    this.mainCanvas.style.cursor = state.cursorStyle || "default";
-  }
-  
-  private setFilterConfig(name: string, value: string) {
-    if (this.filterConfig[name] === value) {
-      return;
+    this.appStates = {
+      filter: new FilterState(
+        this.mainCtx, 
+        this.originalBackgroundImage, 
+        this.filterConfig,
+        this.transformStack,
+        this.mainCanvas
+      ),
+      crop: new CropState(),
+      text: new TextState(),
+      draw: new DrawState(
+        this.mainCtx,
+        this.transformStack,
+        this.redoStack
+      ),
+      sticker: new StickerState(),
     }
-  
-    this.filterConfig[name] = value;
+    this.appState = this.appStates.filter;
+    window.onresize = () => this.resizeCanvas();
+    this.isInitialized = true;
+  }
+
+  private setCanvasState(state: BaseState): void {
+    this.appState = state;
+    this.mainCanvas.style.cursor = state.getCursorStyle();
   }
   
-  private resetCanvas() {
+  private reset(): void {
     // TODO: reset components.
-    this.setCanvasState(this.canvasStates.filter);
-    this.transformStack = [];
-    this.redoStack = [];
-    this.filterConfig = {};
-    this.isMouseDown = false;
-    this.mainCanvas.getContext("2d")?.resetTransform();
-    
+    while (this.transformStack.length > 0) {
+      this.transformStack.pop();
+    }
+    while (this.redoStack.length > 0) {
+      this.redoStack.pop();
+    }
+    for (let key in this.filterConfig) {
+      this.filterConfig[key] = "none";
+    }
+    this.mainCtx.reset();
+    this.setCanvasState(this.appStates.filter);
     this.resizeCanvas();
   }
 
-  public static async loadIcons() {
-    let paths = [
-      './icons/close.svg',
-      './icons/crop.svg',
-      './icons/draw.svg',
-      './icons/filter.svg',
-      './icons/redo.svg',
-      './icons/save.svg',
-      './icons/sticker.svg',
-      './icons/text.svg',
-      './icons/undo.svg',
-    ];
-  
-    let promises = paths.map((path) => {
-      return new Promise((resolve) => {
-        let img = new Image();
-        img.src = path;
-        img.onload = () => {
-          resolve([path.slice(8).replace(".svg", ""), img]);
-        };
-      });
-    });
-  
-    let values = await Promise.all(promises) as [string, HTMLImageElement][];
-    for (let v of values) {
-      let [key, value] = v;
-      CoolImageEditor.icons[key] = value;
-    }
-  }
-
-  private generateCanvas() {
+  private generateCanvas(): HTMLCanvasElement {
     let canvas = document.createElement("canvas");
     canvas.id = "cie-canvas";
     return canvas;
@@ -149,7 +116,7 @@ export default class CoolImageEditor {
   
     let span = document.createElement("span");
     span.classList.add(..."cie-text-20 cie-white".split(" "));
-    span.textContent = resources["edit"];
+    span.textContent = resources.strings["edit"];
     let closeBtn = CoolImageEditor.icons["close"];
     closeBtn.id = "cie-close-btn";
     closeBtn.classList.add("cie-svg-btn");
@@ -191,16 +158,11 @@ export default class CoolImageEditor {
     saveIcon.id = "cie-save-btn";
     
     saveIcon.onclick = () => {
-      if (!this.originalBackgroundImage) {
-        return;
-      }
-  
       let downloadCanvas = document.createElement('canvas');
       downloadCanvas.width = this.originalBackgroundImage.naturalWidth;
       downloadCanvas.height = this.originalBackgroundImage.naturalHeight;
       
-      this.isSave = true;
-      this.render(downloadCanvas, () => {
+      this.render(true, downloadCanvas, () => {
         let downloadElement = document.createElement('a');
         downloadElement.href = downloadCanvas.toDataURL(this.originalFile.type);
         downloadElement.download = this.originalFile.name || "";
@@ -213,22 +175,22 @@ export default class CoolImageEditor {
         onClick: (e: MouseEvent) => {
           switch ((e.target as HTMLElement).id) {
             case filterIcon.id:
-              this.setCanvasState(this.canvasStates.filter);
+              this.setCanvasState(this.appStates.filter);
               break;
             case cropIcon.id: 
-              this.setCanvasState(this.canvasStates.crop);
+              this.setCanvasState(this.appStates.crop);
               break;
             case textIcon.id:
-              this.setCanvasState(this.canvasStates.text);
+              this.setCanvasState(this.appStates.text);
               break;
             case drawIcon.id:
-              this.setCanvasState(this.canvasStates.draw);
+              this.setCanvasState(this.appStates.draw);
               break;
             case stickerIcon.id:
-              this.setCanvasState(this.canvasStates.sticker);
+              this.setCanvasState(this.appStates.sticker);
               break;
             default:
-              this.setCanvasState(this.canvasStates.filter);
+              this.setCanvasState(this.appStates.filter);
               break;
           }
         }
@@ -249,21 +211,14 @@ export default class CoolImageEditor {
     return mainContainer;
   }
   
-  private generateCropBlock() {
+  private generateCropBlock(): HTMLDivElement {
     let cropBlock = document.createElement("div");
     cropBlock.id = "cie-crop-block";
     cropBlock.classList.add("cie-tools-block");
-  
-    let resetBtn = document.createElement("button");
-    resetBtn.id = 'cie-reset';
-    resetBtn.onclick = () => this.resetCanvas();
-    resetBtn.textContent = "Reset";
-  
-    cropBlock.append(resetBtn);
     return cropBlock;
   }
   
-  private generateFilterBlock() {
+  private generateFilterBlock(): HTMLDivElement {
     let filterBlock = document.createElement("div");
     filterBlock.id = "cie-filter-block";
     filterBlock.classList.add("cie-tools-block");
@@ -286,7 +241,7 @@ export default class CoolImageEditor {
         min: "-100",
         max: "100",
         step: "1",
-        label: resources[toolName] || "",
+        label: resources.strings[toolName] || "",
         value: "0"
       };
   
@@ -297,7 +252,7 @@ export default class CoolImageEditor {
           config.value = "50";
           config.events = {
             onInput: (e) => {
-              this.setFilterConfig("brightness", `${(+(e.target as HTMLInputElement).value) * 2}%`);
+              this.filterConfig["brightness"] = `${(+(e.target as HTMLInputElement).value) * 2}%`;
               this.render();
             }
           };
@@ -305,7 +260,7 @@ export default class CoolImageEditor {
         case "contrast":
           config.events = {
             onInput: (e) => {
-              this.setFilterConfig("contrast", `${+(e.target as HTMLInputElement).value + 100}%`);
+              this.filterConfig["contrast"] = `${+(e.target as HTMLInputElement).value + 100}%`;
               this.render();
             }
           };
@@ -314,7 +269,7 @@ export default class CoolImageEditor {
         case "saturation":
           config.events = {
             onInput: (e) => {
-              this.setFilterConfig("saturate", `${+(e.target as HTMLInputElement).value + 100}%`);
+              this.filterConfig["saturate"] = `${+(e.target as HTMLInputElement).value + 100}%`;
               this.render();
             }
           };
@@ -330,190 +285,163 @@ export default class CoolImageEditor {
     return filterBlock;
   }
   
-  private calculateRealPoint(x: number, y: number) {
-    let ctx = this.mainCanvas.getContext("2d");
-    if (!ctx) {
-      throw new Error(`Canvas ${this.mainCanvas.id} has no context`);
-    }
-
-    let scaleLevel = ctx.getTransform().a;
-    let dx = ctx.getTransform().e;
-    let dy = ctx.getTransform().f;
-    return {
-      x: (x - dx) / scaleLevel,
-      y: (y - dy) / scaleLevel
-    };
-  }
-  
-  private renderUndo() {
+  private renderUndo(): void {
     let path = this.transformStack.pop();
     if (!path) {
       return;
     }
   
     this.redoStack.push(path);
-    this.isUndoOrRedo = true;
-    this.render();
+    this.render(true);
   }
   
-  private renderRedo() {
+  private renderRedo(): void {
     let item = this.redoStack.pop();
     if (!item) {
       return;
     }
   
     this.transformStack.push(item);
-    this.isUndoOrRedo = true;
+    this.render(true);
+  }
+  
+  private render(isRerender?: boolean, toCanvas?: HTMLCanvasElement, callback?: () => void): void {
+    requestAnimationFrame(() => {
+      if (isRerender) {
+        this.rerender(toCanvas);
+      } else {
+        this.appState.render();
+      }
+      callback?.call(this);
+    });
+  }
+
+  private rerender(toCanvas?: HTMLCanvasElement): void {
+    let canvas = toCanvas || this.mainCanvas;
+    let ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error("Unable to obtain 2d context from canvas");
+    }
+
+    let transformMatrix = ctx.getTransform();
+    ctx.resetTransform();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(transformMatrix);
+    if (toCanvas) {
+      ctx.filter = this.mainCtx.filter;
+    }
+    ctx.drawImage(this.originalBackgroundImage, 0, 0);
+    
+    // Do not apply filters to drawings.
+    let filterCopy = ctx.filter;
+    ctx.filter = "none";
+
+    for (let item of this.transformStack) {
+      ctx.strokeStyle = item.color;
+      ctx.lineWidth = item.width;
+      ctx.stroke(item.path);
+    }
+    ctx.filter = filterCopy;
+  }
+  
+  private canvasMouseMove(e: MouseEvent): void {
+    if (e.movementX === 0 && e.movementY === 0) {
+      return;
+    }
+  
+    this.appState.canvasMouseMove(e);
     this.render();
   }
   
-  public resizeCanvas() {
-    if (!this.originalBackgroundImage) {
+  private canvasMouseDown(e: MouseEvent): void {
+    if (!this.appState.isMouseMoveEventsEnabled()) {
       return;
     }
-    if (!this.mainCanvas) {
-      throw new Error("The main canvas is not initialized");
+
+    this.mainCanvas.onmousedown = () => {};
+    this.mainCanvas.onmousemove = (e) => this.canvasMouseMove(e);
+    this.mainCanvas.onmouseup = () => this.canvasMouseUp();
+    document.onmouseup = () => this.canvasMouseUp();
+  
+    this.appState.canvasMouseDown(e);
+    this.render();
+  }
+  
+  private canvasMouseUp(): void {
+    if (!this.appState.isMouseMoveEventsEnabled()) {
+      return;
     }
 
-    let ctx = this.mainCanvas.getContext("2d");
-    if (!ctx) {
-      throw new Error(`Canvas ${this.mainCanvas.id} has no context`);
+    this.mainCanvas.onmousedown = (e) => this.canvasMouseDown(e);
+    this.mainCanvas.onmousemove = () => {};
+    this.mainCanvas.onmouseup = () => {};
+    document.onmouseup = () => {};
+  }
+
+  public setImage(config: {
+    img: HTMLImageElement,
+    file: File
+  }): void {
+    if (!this.isInitialized) {
+      throw new Error("You must first construst the app.");
+    }
+
+    this.reset();
+    this.originalBackgroundImage = config.img;
+    this.originalFile = config.file;
+  }
+
+  public resizeCanvas(): void {
+    if (!this.isInitialized) {
+      throw new Error("You must first construst the app.");
     }
 
     let parentElement = this.mainCanvas.parentElement!;
-  
-    this.mainCanvas.width = parentElement.clientWidth;
-    this.mainCanvas.height = parentElement.clientHeight;
-  
-    let centerPoint = {
-      x: Math.floor(parentElement.clientWidth / 2),
-      y: Math.floor(parentElement.clientHeight / 2),
-    };
   
     let scaleCoefX = parentElement.clientWidth / this.originalBackgroundImage.naturalWidth;
     let scaleCoefY = parentElement.clientHeight / this.originalBackgroundImage.naturalHeight;
     let scaleCoef = Math.min(scaleCoefX, scaleCoefY);
   
+    this.mainCanvas.width = this.originalBackgroundImage.naturalWidth;
+    this.mainCanvas.height = this.originalBackgroundImage.naturalHeight;
+
     if (scaleCoef < 1) {
-      ctx.translate(centerPoint.x - Math.floor(this.originalBackgroundImage.naturalWidth * scaleCoef / 2), centerPoint.y - Math.floor(this.originalBackgroundImage.naturalHeight * scaleCoef / 2));
-      ctx.scale(scaleCoef, scaleCoef);
-    } else {
-      ctx.translate(centerPoint.x - Math.floor(this.originalBackgroundImage.naturalWidth / 2), centerPoint.y - Math.floor(this.originalBackgroundImage.naturalHeight / 2));
-    }
-    this.isResize = true;
-    this.render();
-  }
-  
-  private render(toCanvas?: HTMLCanvasElement, callback?: () => void) {
-    if (!this.originalBackgroundImage) {
-      return;
-    }
-    let canvas = toCanvas || this.mainCanvas;
-    if (!canvas) {
-      return;
-    }
-    let ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error(`Canvas ${canvas.id} has no context`);
+      this.mainCanvas.width  *= scaleCoef;
+      this.mainCanvas.height *= scaleCoef;
+
+      this.mainCtx.scale(scaleCoef, scaleCoef);
     }
 
-    requestAnimationFrame(() => {
-      if (this.isResize) {
-        let transformMatrix = ctx.getTransform();
-        ctx.resetTransform();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.setTransform(transformMatrix);
-      }
-      
-      let filter = "";
-      for (let [key, value] of Object.entries(this.filterConfig)) {
-        filter += `${key}(${value}) `;
-      }
-      ctx.filter = filter;
-      
-      if (!this.isDraw() || this.isResize || this.isUndoOrRedo || this.isSave) {
-        ctx.drawImage(this.originalBackgroundImage, 0, 0);
-      }
-  
-      // Do not apply filters to drawings.
-      ctx.filter = "none";
-  
-      for (let item of this.transformStack) {
-        let { path, color } = item;
-        ctx.fillStyle = color;
-        ctx.fill(path);
-      }
-      this.isResize = false;
-      this.isUndoOrRedo = false;
-      this.isSave = false;
-      callback?.call(this);
-    });
+    this.render(true);
   }
+
+  public static async loadIcons(): Promise<void> {
+    let paths = [
+      './icons/close.svg',
+      './icons/crop.svg',
+      './icons/draw.svg',
+      './icons/filter.svg',
+      './icons/redo.svg',
+      './icons/save.svg',
+      './icons/sticker.svg',
+      './icons/text.svg',
+      './icons/undo.svg',
+    ];
   
-  private canvasMouseMove(e: MouseEvent) {
-    if (!this.isMouseDown || e.movementX === 0 && e.movementY === 0) {
-      return;
-    }
-  
-    if (this.isDraw()) {
-      // Merge previous point with the current.
-      let item = this.transformStack[this.transformStack.length - 1];
-      if (item) {
-        let { x, y } = this.calculateRealPoint(e.offsetX, e.offsetY);
-        item.path.addPath(this.createDrawingPath(x, y));
-      }
-    }
-    
-    this.render();
-  }
-  
-  private pushPathToTransformStack(path: Path2D) {
-    this.redoStack = [];
-    // TODO: color.
-    this.transformStack.push({
-      path: path,
-      color: "#ffff00"
+    let promises = paths.map((path) => {
+      return new Promise((resolve) => {
+        let img = new Image();
+        img.src = path;
+        img.onload = () => {
+          resolve([path.slice(8).replace(".svg", ""), img]);
+        };
+      });
     });
   
-  }
-  
-  private canvasMouseDown(e: MouseEvent) {
-    if (!this.isDraw()) {
-      return;
+    let values = await Promise.all(promises) as [string, HTMLImageElement][];
+    for (let v of values) {
+      let [key, value] = v;
+      CoolImageEditor.icons[key] = value;
     }
-  
-    this.mainCanvas.onmousedown = () => {};
-    this.mainCanvas.onmousemove = (e) => this.canvasMouseMove(e);
-    this.mainCanvas.onmouseup = () => this.canvasMouseUp();
-    document.onmouseup = () => this.canvasMouseUp();
-    this.isMouseDown = true;
-  
-    if (this.isDraw()) {
-      let { x, y } = this.calculateRealPoint(e.offsetX, e.offsetY);
-      this.pushPathToTransformStack(this.createDrawingPath(x, y));
-      this.render();
-    }
-  }
-  
-  
-  private canvasMouseUp() {
-    this.mainCanvas.onmousedown = (e) => this.canvasMouseDown(e);
-    this.mainCanvas.onmousemove = () => {};
-    this.mainCanvas.onmouseup = () => {};
-    document.onmouseup = () => {};
-    this.isMouseDown = false;
-  }
-  
-  private createDrawingPath(x: number, y: number) {
-    let path = new Path2D();
-    // TODO: width.
-    // TODO: may be not circles?
-    path.arc(x, y, 20,
-      0, 2 * Math.PI, false);
-    return path;
-  }
-  
-  private isDraw() {
-    return this.canvasState.id === this.canvasStates.draw.id;
   }
 }

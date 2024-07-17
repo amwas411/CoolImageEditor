@@ -45,9 +45,5 @@ export default class RangeInput {
         this.valueLabel.textContent = e.target?.value;
         this.events.onInput && this.events.onInput(e);
     };
-    reset() {
-        this.input.value = this.value = this.defaultValue;
-        this.valueLabel.textContent = this.value;
-    }
 }
 //# sourceMappingURL=rangeInput.js.map

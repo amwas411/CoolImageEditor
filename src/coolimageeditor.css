@@ -9,11 +9,16 @@
   display: flex;
 }
 #cie-left-panel {
+  position: relative;
   width: 70%;
   background: black;
 }
 #cie-canvas {
   display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 #cie-right-panel {
   width: 30%;

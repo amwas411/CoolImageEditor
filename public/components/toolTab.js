@@ -5,7 +5,6 @@ export default class ToolTab {
     panelClass = "cie-block";
     menuId = "cie-tools-menu";
     panelId = "cie-tools-panel";
-    activeButtonColor = "#4e8ee5";
     events = {};
     container;
     constructor(config) {
