@@ -1,4 +1,6 @@
-export default class RangeInput {
+import Component from "./component";
+
+export default class RangeInput implements Component {
   private min = "0";
   private max = "100";
   private step = "1";
@@ -58,6 +60,12 @@ export default class RangeInput {
     container.append(labelWrap, input);
     this.container = container;
     this.input.addEventListener("input", this.onInput);
+  }
+
+  public reset(): void {
+    this.value = this.defaultValue;
+    this.input.value = this.defaultValue;
+    this.valueLabel.textContent = this.defaultValue;
   }
 
   private onInput = (e: Event) => {

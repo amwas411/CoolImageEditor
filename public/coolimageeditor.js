@@ -9,6 +9,11 @@ import { StickerState } from './states/stickerState.js';
 export default class CoolImageEditor {
     appState;
     appStates;
+    components = [];
+    // public methods guard.
+    isInitialized = false;
+    static icons = {};
+    container;
     mainCanvas;
     mainCtx;
     originalBackgroundImage;
@@ -16,10 +21,6 @@ export default class CoolImageEditor {
     transformStack = [];
     redoStack = [];
     filterConfig = {};
-    // public methods guard.
-    isInitialized = false;
-    static icons = {};
-    container;
     constructor(config) {
         this.originalBackgroundImage = config.img;
         this.originalFile = config.file;
@@ -32,11 +33,11 @@ export default class CoolImageEditor {
         this.container = this.generate();
         this.mainCanvas.onmousedown = (e) => this.canvasMouseDown(e);
         this.appStates = {
-            filter: new FilterState(this.mainCtx, this.originalBackgroundImage, this.filterConfig, this.transformStack, this.mainCanvas),
-            crop: new CropState(),
-            text: new TextState(),
-            draw: new DrawState(this.mainCtx, this.transformStack, this.redoStack),
-            sticker: new StickerState(),
+            filter: new FilterState(this),
+            crop: new CropState(this),
+            text: new TextState(this),
+            draw: new DrawState(this),
+            sticker: new StickerState(this),
         };
         this.appState = this.appStates.filter;
         window.onresize = () => this.resizeCanvas();
@@ -48,15 +49,12 @@ export default class CoolImageEditor {
     }
     reset() {
         // TODO: reset components.
-        while (this.transformStack.length > 0) {
-            this.transformStack.pop();
+        for (let component of this.components) {
+            component.reset();
         }
-        while (this.redoStack.length > 0) {
-            this.redoStack.pop();
-        }
-        for (let key in this.filterConfig) {
-            this.filterConfig[key] = "none";
-        }
+        this.transformStack = [];
+        this.redoStack = [];
+        this.filterConfig = {};
         this.mainCtx.reset();
         this.setCanvasState(this.appStates.filter);
         this.resizeCanvas();
@@ -154,12 +152,14 @@ export default class CoolImageEditor {
             }
         });
         let filterBlock = this.generateFilterBlock();
-        toolTab.appendTab(filterIcon, filterBlock);
-        toolTab.appendTab(cropIcon, this.generateCropBlock());
-        toolTab.appendTab(textIcon, document.createElement("div"));
-        toolTab.appendTab(drawIcon, document.createElement("div"));
-        toolTab.appendTab(stickerIcon, document.createElement("div"));
-        toolTab.activateTab(filterIcon, filterBlock);
+        toolTab.appendTab(filterIcon, filterBlock, "filter");
+        toolTab.appendTab(cropIcon, this.generateCropBlock(), "crop");
+        toolTab.appendTab(textIcon, document.createElement("div"), "text");
+        toolTab.appendTab(drawIcon, document.createElement("div"), "draw");
+        toolTab.appendTab(stickerIcon, document.createElement("div"), "sticker");
+        toolTab.activateTab("filter");
+        toolTab.registerDefaultTab("filter");
+        this.components.push(toolTab);
         rightPanel.append(title, toolTab.container, saveIcon);
         mainContainer.append(leftPanel, rightPanel);
         return mainContainer;
@@ -221,6 +221,7 @@ export default class CoolImageEditor {
                     break;
             }
             let tool = new RangeInput(config);
+            this.components.push(tool);
             filterBlock.append(tool.container);
         }
         return filterBlock;

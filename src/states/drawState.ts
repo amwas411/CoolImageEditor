@@ -1,18 +1,12 @@
-import { TransformPath } from '../types.js';
+import CoolImageEditor from '../coolimageeditor.js';
 import BaseState from './baseState.js';
 
 export class DrawState extends BaseState {
-  private transformStack: TransformPath[];
-  private redoStack: TransformPath[];
-  private ctx: CanvasRenderingContext2D;
   private color = "#ffff00";
   private width = 20;
 
-  constructor(ctx: CanvasRenderingContext2D, transformStack: TransformPath[], redoStack: TransformPath[]) {
-    super();
-    this.ctx = ctx;
-    this.transformStack = transformStack;
-    this.redoStack = redoStack;
+  constructor(coolImageEditor: CoolImageEditor) {
+    super(coolImageEditor);
     this.cursorStyle = "crosshair";
     this.hasMouseMoveEvents = true;
   }
@@ -24,23 +18,23 @@ export class DrawState extends BaseState {
   };
 
   public render(): void {
-    let item = this.transformStack[this.transformStack.length - 1];
+    let item = this.coolImageEditor.transformStack[this.coolImageEditor.transformStack.length - 1];
     if (item) {
-      let filterCopy = this.ctx.filter;
+      let filterCopy = this.coolImageEditor.mainCtx.filter;
       // Do not apply filters to drawings.
-      this.ctx.filter = "none";
+      this.coolImageEditor.mainCtx.filter = "none";
 
-      this.ctx.lineWidth = this.width;
-      this.ctx.strokeStyle = item.color;
-      this.ctx.stroke(item.path);
+      this.coolImageEditor.mainCtx.lineWidth = this.width;
+      this.coolImageEditor.mainCtx.strokeStyle = item.color;
+      this.coolImageEditor.mainCtx.stroke(item.path);
 
-      this.ctx.filter = filterCopy;
+      this.coolImageEditor.mainCtx.filter = filterCopy;
     }
   }
 
   public canvasMouseMove(e: MouseEvent): void {
     // Merge previous point with the current.
-    let item = this.transformStack[this.transformStack.length - 1];
+    let item = this.coolImageEditor.transformStack[this.coolImageEditor.transformStack.length - 1];
     if (item) {
       let {x, y} = this.calculateRealPoint(e.offsetX, e.offsetY);
 
@@ -69,9 +63,9 @@ export class DrawState extends BaseState {
   }
 
   private calculateRealPoint(x: number, y: number): {x: number, y: number} {
-    let scaleLevel = this.ctx.getTransform().a;
-    let dx = this.ctx.getTransform().e;
-    let dy = this.ctx.getTransform().f;
+    let scaleLevel = this.coolImageEditor.mainCtx.getTransform().a;
+    let dx = this.coolImageEditor.mainCtx.getTransform().e;
+    let dy = this.coolImageEditor.mainCtx.getTransform().f;
     return {
       x: (x - dx) / scaleLevel,
       y: (y - dy) / scaleLevel
@@ -80,12 +74,12 @@ export class DrawState extends BaseState {
   }
 
   private pushPathToTransformStack(path: Path2D, x: number, y: number): void {
-    while (this.redoStack.length > 0) {
-      this.redoStack.pop();
+    while (this.coolImageEditor.redoStack.length > 0) {
+      this.coolImageEditor.redoStack.pop();
     }
 
     // TODO: color.
-    this.transformStack.push({
+    this.coolImageEditor.transformStack.push({
       path: path,
       color: this.color,
       point: {

@@ -41,6 +41,11 @@ export default class RangeInput {
         this.container = container;
         this.input.addEventListener("input", this.onInput);
     }
+    reset() {
+        this.value = this.defaultValue;
+        this.input.value = this.defaultValue;
+        this.valueLabel.textContent = this.defaultValue;
+    }
     onInput = (e) => {
         this.valueLabel.textContent = e.target?.value;
         this.events.onInput && this.events.onInput(e);
