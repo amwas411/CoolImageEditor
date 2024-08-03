@@ -1,9 +1,11 @@
-const Resources: {[key: string]: {[key:string]: string}} = {
+const Resources = {
   strings: {
-    enhance: "Enhance",
     brightness: "Brightness",
     contrast: "Contrast",
     saturation: "Saturation",
+    sharpen: "Sharpen",
+    vignette: "Vignette",
+    grain: "Grain",
     warmth: "Warmth",
     edit: "Edit"
   },

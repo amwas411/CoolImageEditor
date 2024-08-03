@@ -1,4 +1,4 @@
-export type FilterName = "enhance" | "brightness" | "contrast" | "saturation" | "warmth";
+export type FilterName = "brightness" | "contrast" | "saturation" | "convolution";
 export type CursorStyle = "default" | "crosshair" | "grab";
 export type TransformPath = {
   path: Path2D, 

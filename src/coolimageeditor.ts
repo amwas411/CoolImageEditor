@@ -68,7 +68,6 @@ export default class CoolImageEditor {
   }
   
   private reset(): void {
-    // TODO: reset components.
     for (let component of this.components) {
       component.reset();
     }
@@ -214,67 +213,119 @@ export default class CoolImageEditor {
     let filterBlock = document.createElement("div");
     filterBlock.id = "cie-filter-block";
     filterBlock.classList.add("cie-tools-block");
-    const filterNames: FilterName[] = [
-      "enhance",
-      "brightness",
-      "contrast",
-      "saturation",
-      "warmth",
-    ];
-    for (let toolName of filterNames) {
-      let config: {
-        min: string,
-        max: string,
-        step: string,
-        label: string,
-        value: string,
-        events?: RangeInput["events"]
-      } = {
-        min: "-100",
-        max: "100",
-        step: "1",
-        label: resources.strings[toolName] || "",
-        value: "0"
-      };
-  
-      switch (toolName) {
-        case "brightness":
-          config.min = "0";
-          config.max = "100";
-          config.value = "50";
-          config.events = {
-            onInput: (e) => {
-              this.filterConfig["brightness"] = `${(+(e.target as HTMLInputElement).value) * 2}%`;
-              this.render();
-            }
-          };
-          break;
-        case "contrast":
-          config.events = {
-            onInput: (e) => {
-              this.filterConfig["contrast"] = `${+(e.target as HTMLInputElement).value + 100}%`;
-              this.render();
-            }
-          };
-          break;
-        
-        case "saturation":
-          config.events = {
-            onInput: (e) => {
-              this.filterConfig["saturate"] = `${+(e.target as HTMLInputElement).value + 100}%`;
-              this.render();
-            }
-          };
-          break;
-  
-        default:
-          break;
+
+    let brightness = new RangeInput({
+      min: "0",
+      max: "100",
+      step: "1",
+      label: resources.strings.brightness,
+      value: "50",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["brightness"] = `${(+(e.target as HTMLInputElement).value) * 2}%`;
+          this.render();
+        }
       }
-  
-      let tool = new RangeInput(config);
-      this.components.push(tool);
-      filterBlock.append(tool.container);
-    }
+    });
+    this.components.push(brightness);
+    filterBlock.append(brightness.container);
+    
+    let contrast = new RangeInput({
+      min: "-100",
+      max: "100",
+      step: "1",
+      label: resources.strings.contrast,
+      value: "50",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["contrast"] = `${+(e.target as HTMLInputElement).value + 100}%`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(contrast);
+    filterBlock.append(contrast.container);
+
+    let saturation = new RangeInput({
+      min: "-100",
+      max: "100",
+      step: "1",
+      label: resources.strings.saturation,
+      value: "50",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["saturate"] = `${+(e.target as HTMLInputElement).value + 100}%`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(saturation);
+    filterBlock.append(saturation.container);
+
+    let sharpen = new RangeInput({
+      min: "0",
+      max: "50",
+      step: "1",
+      label: resources.strings.sharpen,
+      value: "0",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["sharpen"] = `${+(e.target as HTMLInputElement).value}`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(sharpen);
+    filterBlock.append(sharpen.container);
+
+    let vignette = new RangeInput({
+      min: "0",
+      max: "100",
+      step: "1",
+      label: resources.strings.vignette,
+      value: "0",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["vignette"] = `${+(e.target as HTMLInputElement).value}`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(vignette);
+    filterBlock.append(vignette.container);
+
+    let grain = new RangeInput({
+      min: "0",
+      max: "100",
+      step: "1",
+      label: resources.strings.grain,
+      value: "0",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["grain"] = `${+(e.target as HTMLInputElement).value}`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(grain);
+    filterBlock.append(grain.container);
+
+    let warmth = new RangeInput({
+      min: "-100",
+      max: "100",
+      step: "1",
+      label: resources.strings.warmth,
+      value: "0",
+      events: {
+        onInput: (e) => {
+          this.filterConfig["warmth"] = `${+(e.target as HTMLInputElement).value}`;
+          this.render();
+        }
+      }
+    });
+    this.components.push(warmth);
+    filterBlock.append(warmth.container);
+
     return filterBlock;
   }
   
@@ -316,25 +367,23 @@ export default class CoolImageEditor {
       throw new Error("Unable to obtain 2d context from canvas");
     }
 
-    let transformMatrix = ctx.getTransform();
-    ctx.resetTransform();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(transformMatrix);
     if (toCanvas) {
       ctx.filter = this.mainCtx.filter;
     }
     ctx.drawImage(this.originalBackgroundImage, 0, 0);
     
     // Do not apply filters to drawings.
-    let filterCopy = ctx.filter;
+    ctx.save();
     ctx.filter = "none";
 
     for (let item of this.transformStack) {
+      ctx.beginPath();
       ctx.strokeStyle = item.color;
       ctx.lineWidth = item.width;
       ctx.stroke(item.path);
     }
-    ctx.filter = filterCopy;
+    ctx.restore();
   }
   
   private canvasMouseMove(e: MouseEvent): void {

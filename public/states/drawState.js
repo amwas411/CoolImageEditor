@@ -8,7 +8,7 @@ export class DrawState extends BaseState {
         this.hasMouseMoveEvents = true;
     }
     canvasMouseDown(e) {
-        let { x, y } = this.calculateRealPoint(e.offsetX, e.offsetY);
+        let { x, y } = this.screenToWorld(e.offsetX, e.offsetY);
         let point = this.createDrawingPoint(x, y);
         this.pushPathToTransformStack(point, x, y);
     }
@@ -29,11 +29,11 @@ export class DrawState extends BaseState {
         // Merge previous point with the current.
         let item = this.coolImageEditor.transformStack[this.coolImageEditor.transformStack.length - 1];
         if (item) {
-            let { x, y } = this.calculateRealPoint(e.offsetX, e.offsetY);
+            let { x, y } = this.screenToWorld(e.offsetX, e.offsetY);
             let line = this.createDrawingLine(item.point.x, item.point.y, x, y);
             item.path.addPath(line);
-            let point = this.createDrawingPoint(x, y);
-            item.path.addPath(point);
+            // let point = this.createDrawingPoint(x, y);
+            // item.path.addPath(point);
             item.point.x = x;
             item.point.y = y;
         }
@@ -50,7 +50,7 @@ export class DrawState extends BaseState {
         path.arc(x, y, 1, 0, 2 * Math.PI);
         return path;
     }
-    calculateRealPoint(x, y) {
+    screenToWorld(x, y) {
         let scaleLevel = this.coolImageEditor.mainCtx.getTransform().a;
         let dx = this.coolImageEditor.mainCtx.getTransform().e;
         let dy = this.coolImageEditor.mainCtx.getTransform().f;
